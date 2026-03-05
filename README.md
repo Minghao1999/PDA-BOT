@@ -42,6 +42,8 @@ On your Android device:
 4. Connect device to computer
 5. Allow debugging authorization
 
-You can verify the device connection by running:
+## How to run
+
+
 
 (Version 1 can only be accessed from the login screen. If you are already logged into an account, please log out first.)
