@@ -19,12 +19,16 @@ ADB WMS Controller is a desktop automation tool built with **Python** and **Tkin
 Before running the program, install:
 
 - Python 3.9+
-- Android ADB platform-tools
+- Android **ADB platform-tools**
+- **ADB Keyboard (required for text input)**
 
-Download ADB:
+Download ADB platform tools:
 
 https://developer.android.com/tools/releases/platform-tools
 
+Download ADB Keyboard:
+
+https://github.com/senzhk/ADBKeyBoard
 
 ---
 
@@ -38,12 +42,6 @@ On your Android device:
 4. Connect device to computer
 5. Allow debugging authorization
 
----
+You can verify the device connection by running:
 
-## How to Run
-
-1. Select device
-2. Configure task
-3. Click **Start**
-
-The program will automatically execute ADB commands.
+(Version 1 can only be accessed from the login screen. If you are already logged into an account, please log out first.)
