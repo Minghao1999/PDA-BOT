@@ -42,8 +42,14 @@ On your Android device:
 4. Connect device to computer
 5. Allow debugging authorization
 
-## How to run
+## How to Run
 
-
+1. Open **walmurt.py** in VS Code.
+2. Click the **Run** button (the triangle icon) in the upper-right corner.
+3. The program UI will appear.
+4. Enter your **account** and **password**.
+5. Select the **device number** from the left.
+5. Set the **loop limit** if needed.
+6. Click **Start** to run the automation.
 
 (Version 1 can only be accessed from the login screen. If you are already logged into an account, please log out first.)
