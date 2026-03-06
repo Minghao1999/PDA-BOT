@@ -55,9 +55,16 @@ def rsleep(base=1.0, delta=0.5):
 
 
 class DeviceBot:
-    def __init__(self, serial):
+    def __init__(self, serial, logger=None):
         self.serial = serial
         self.should_stop = False   # ⭐ 用于停止任务
+        self.logger = logger
+    
+    def log(self, msg):
+        if self.logger:
+            self.logger(msg)
+        else:
+            print(msg)
 
     def adb(self, args):
         cmd = [ADB_BIN, "-s", self.serial] + args
@@ -588,13 +595,19 @@ class DeviceBot:
 
         current_container = "A1-R1-L1-B1"
 
-        while not self.should_stop and loop_count < limit:
+        while not self.should_stop and (limit == 0 or loop_count < limit):
             if current_container == cell_a:
                 destination = cell_b
             else:
                 destination = cell_a
 
             account, password = cred_list[cred_idx]
+
+            self.log("========================================")
+            self.log(f"🔁 Loop #{loop_count + 1}")
+            self.log(f"👤 Account : {account}")
+            self.log(f"🔑 Password: {password}")
+            self.log("========================================")
 
             # 只在第一次循环启动一次
             if loop_count == 0:
@@ -673,7 +686,10 @@ class DeviceBot:
                 return
             
             loop_count += 1
-            print(f"🔁 Total loops: {loop_count}")
+
+            self.log("---------- Loop Finished ----------")
+            self.log(f"Total loops: {loop_count}")
+            self.log("-----------------------------------")
 
             cred_idx = (cred_idx + 1) % len(cred_list)
             current_container = destination
@@ -826,7 +842,7 @@ class MultiDeviceGUI:
         # limit
         ttk.Label(param_frame, text="Limit:").grid(row=0, column=2, sticky="w")
         self.entry_limit = ttk.Entry(param_frame, width=10)
-        self.entry_limit.insert(0, "400")
+        self.entry_limit.insert(0, "0")
         self.entry_limit.grid(row=0, column=3, padx=5)
 
         ttk.Button(frame_right, text="▶ 启动任务（选中设备）",
@@ -1000,7 +1016,7 @@ class MultiDeviceGUI:
             self.log(f"[{serial}] 任务启动")
 
     def run_bot_worker(self, serial, cred_list):
-        bot = DeviceBot(serial)
+        bot = DeviceBot(serial, logger=lambda m: self.log(f"[{serial}] {m}"))
 
         # 从 UI 获取参数
         # checkpoint = int(self.entry_checkpoint.get())
