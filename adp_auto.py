@@ -611,21 +611,22 @@ class DeviceBot:
 
     def build_large_box(self,
                     limit=400,
-                    cred_list=None):
+                    cred_list=None,
+                    warehouse="EWR-LG-5-US",
+                    product="B0108-03001BK",
+                    cell_a="A1-R1-L1-B1",
+                    cell_b="A1-R1-L1-B2"):
 
         if not cred_list:
             print("❌ No credentials list provided")
             return
 
-        # 固定两个库位
-        cell_a = "A1-R1-L1-B1"
-        cell_b = "A1-R1-L1-B2"
         current_container = None
 
         cred_idx = 0
         loop_count = 0   # ⭐ 总循环次数
 
-        current_container = "A1-R1-L1-B1"
+        current_container = cell_a
 
         while not self.should_stop and (limit == 0 or loop_count < limit):
             cred_idx = cred_idx % len(cred_list)
@@ -657,7 +658,7 @@ class DeviceBot:
                 self.handle_update_if_needed()
                 self.close_survey_if_present()
 
-            if not self.login(account, password):
+            if not self.login(account, password, warehouse):
                 print("❌ Login failed")
                 cred_idx += 1
                 continue
@@ -691,8 +692,7 @@ class DeviceBot:
             time.sleep(0.7)
 
             # 输入 Product Code
-            fixed_product = "B0108-03001BK"
-            self.input_text_direct(fixed_product, press_enter=True)
+            self.input_text_direct(product, press_enter=True)
             
             # ⭐ 填写数量和目标库位
             if not self.fill_offshelf_and_destination(destination):
@@ -735,7 +735,7 @@ class DeviceBot:
 
         print("🎉 All accounts finished.")
 
-    def login(self, account, password):
+    def login(self, account, password, warehouse):
 
         # 只 dump 一次
         xml = self.get_page_xml()
@@ -784,8 +784,10 @@ class DeviceBot:
             return False
 
         # 点击 EWR-LG-5-US
-        if not self.click_by_text("EWR-LG-5-US"):
-            print("❌ Warehouse option not found")
+        print(f"🏭 Selecting warehouse: {warehouse}")
+
+        if not self.click_by_text(warehouse):
+            print(f"❌ Warehouse {warehouse} not found")
             return False
         
         # 有时会弹出 Survey
@@ -882,10 +884,68 @@ class MultiDeviceGUI:
         param_frame.pack(fill="x", pady=10)
 
         # limit
+        # limit
         ttk.Label(param_frame, text="Limit:").grid(row=0, column=2, sticky="w")
+
         self.entry_limit = ttk.Entry(param_frame, width=10)
         self.entry_limit.insert(0, "0")
         self.entry_limit.grid(row=0, column=3, padx=5)
+
+        # =========================
+        # Warehouse 选择
+        # =========================
+        ttk.Label(param_frame, text="Warehouse:").grid(row=1, column=2, sticky="w")
+
+        self.warehouse_var = tk.StringVar()
+
+        self.warehouse_combo = ttk.Combobox(
+            param_frame,
+            textvariable=self.warehouse_var,
+            state="readonly",
+            width=20
+        )
+
+        self.warehouse_combo["values"] = [
+            "EWR-SM-2-US",
+            "EWR-LG-1-US",
+            "EWR-SM-3-US",
+            "EWR-LG-5-US"
+        ]
+
+        self.warehouse_combo.current(3)
+        self.warehouse_combo.grid(row=1, column=3, padx=5)
+
+        # =========================
+        # Product Code 输入
+        # =========================
+        ttk.Label(param_frame, text="Product Code:").grid(row=2, column=2, sticky="w")
+
+        self.product_var = tk.StringVar()
+        self.product_entry = ttk.Entry(param_frame, textvariable=self.product_var, width=20)
+        self.product_entry.insert(0, "B0108-03001BK")
+        self.product_entry.grid(row=2, column=3, padx=5)
+
+
+        # =========================
+        # Cell A
+        # =========================
+        ttk.Label(param_frame, text="Cell A:").grid(row=3, column=2, sticky="w")
+
+        self.cell_a_var = tk.StringVar()
+        self.cell_a_entry = ttk.Entry(param_frame, textvariable=self.cell_a_var, width=20)
+        self.cell_a_entry.insert(0, "A1-R1-L1-B1")
+        self.cell_a_entry.grid(row=3, column=3, padx=5)
+
+
+        # =========================
+        # Cell B
+        # =========================
+        ttk.Label(param_frame, text="Cell B:").grid(row=4, column=2, sticky="w")
+
+        self.cell_b_var = tk.StringVar()
+        self.cell_b_entry = ttk.Entry(param_frame, textvariable=self.cell_b_var, width=20)
+        self.cell_b_entry.insert(0, "A1-R1-L1-B2")
+        self.cell_b_entry.grid(row=4, column=3, padx=5)
 
         ttk.Button(frame_right, text="▶ 启动任务（选中设备）",
                     command=self.start_for_selected).pack(pady=15)
@@ -1058,15 +1118,34 @@ class MultiDeviceGUI:
             self.log(f"[{serial}] 任务启动")
 
     def run_bot_worker(self, serial, cred_list):
+
+        # ========= 获取参数 =========
+        warehouse = self.warehouse_var.get()
+        product = self.product_var.get()
+        cell_a = self.cell_a_var.get()
+        cell_b = self.cell_b_var.get()
+
+        if not warehouse or not product or not cell_a or not cell_b:
+            self.root.after(0, lambda: messagebox.showerror("错误", "Warehouse / Product / Cell 不能为空"))
+            return
+
+        try:
+            limit = int(self.entry_limit.get())
+        except:
+            self.root.after(0, lambda: messagebox.showerror("错误", "Limit 必须是数字"))
+            return
+
+        # ========= 创建 Bot =========
         bot = DeviceBot(serial, logger=lambda m: self.log(f"[{serial}] {m}"))
 
-        # 从 UI 获取参数
-        # checkpoint = int(self.entry_checkpoint.get())
-        limit = int(self.entry_limit.get())
-
+        # ========= 启动 =========
         bot.build_large_box(
             limit=limit,
-            cred_list=cred_list
+            cred_list=cred_list,
+            warehouse=warehouse,
+            product=product,
+            cell_a=cell_a,
+            cell_b=cell_b
         )
 
         self.log(f"[{serial}] 任务完成")
