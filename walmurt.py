@@ -7,12 +7,23 @@ import random
 import re
 import xml.etree.ElementTree as ET
 import sys
-import queue
+import hashlib
 
 # ============================================================
 # ADB 工具函数（与设备无关）
 # ============================================================
-ADB_BIN = "platform-tools/adb.exe"
+import os
+import sys
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+ADB_BIN = resource_path("platform-tools/adb.exe")
 
 def adb_raw(args):
     return subprocess.run(
@@ -48,17 +59,20 @@ def run_utf8(cmd, **kwargs):
     kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
     return subprocess.run(cmd, **kwargs)
 
-
-def rsleep(base=1.0, delta=0.5):
-    sec = random.uniform(base - delta, base + delta)
+def rsleep(rng, base=1.0, delta=0.5):
+    sec = rng.uniform(base - delta, base + delta)
     time.sleep(max(sec, 0.1))
 
 
 class DeviceBot:
     def __init__(self, serial, logger=None):
         self.serial = serial
-        self.should_stop = False   # ⭐ 用于停止任务
+        self.should_stop = False
         self.logger = logger
+
+        # ⭐ 每个设备一个随机seed
+        seed = int(hashlib.md5(serial.encode()).hexdigest(), 16) % (2**32)
+        self.rng = random.Random(seed)
     
     def log(self, msg):
         if self.logger:
@@ -82,7 +96,7 @@ class DeviceBot:
         if "Display Power: state=OFF" in state:
             print("🔆 Screen off → waking up")
             self.adb(["shell", "input", "keyevent", "26"])
-            time.sleep(0.5)
+            rsleep(self.rng, 0.5, 0.1)
 
         # 滑动解锁
         self.adb([
@@ -90,7 +104,7 @@ class DeviceBot:
             "300", "1000", "300", "400", "300"
         ])
 
-        time.sleep(0.5)
+        rsleep(self.rng, 0.5, 0.1)
 
     def stop_wms(self):
         self.adb(["shell", "am", "force-stop", "com.jd.mrd.pangu"])
@@ -98,7 +112,7 @@ class DeviceBot:
     def run_wms(self):
         # 回到桌面
         self.adb(["shell", "input", "keyevent", "3"])
-        rsleep(0.5, 0.2)
+        rsleep(self.rng, 0.5, 0.2)
 
         # 启动 iWMS
         r = self.adb([
@@ -106,11 +120,8 @@ class DeviceBot:
             "com.jd.mrd.pangu/.entrance.activity.WelcomeActivity"
         ])
 
-        print("[am start stdout]", r.stdout.strip())
-        print("[am start stderr]", r.stderr.strip())
-
         # 等待加载
-        rsleep(2, 1)
+        rsleep(self.rng, 2, 1)
 
         # 验证是否真的到前台
         focus = self.adb(["shell", "dumpsys", "window", "windows"]).stdout
@@ -147,7 +158,7 @@ class DeviceBot:
                     print("✅ Click second INSTALL")
                     break
 
-            time.sleep(0.5)
+            rsleep(self.rng, 0.5, 0.1)
 
         # 等待安装完成
         print("⏳ Waiting install finish...")
@@ -212,7 +223,7 @@ class DeviceBot:
             "shell", "ime", "set", "com.android.adbkeyboard/.AdbIME"
         ])
 
-        time.sleep(0.5)
+        rsleep(self.rng, 0.5, 0.1)
 
         print("✅ ADBKeyboard activated")
 
@@ -272,6 +283,27 @@ class DeviceBot:
                       "300", "700", "300", "200", "500"])
         return False
     
+    def close_survey_if_present(self):
+
+        for _ in range(6):
+
+            xml = self.get_page_xml()
+
+            # 检测 Survey
+            if "Satisfaction Survey" in xml or "CSAT" in xml:
+
+                print("⚠️ Survey detected")
+
+                # 点击关闭按钮
+                if self.click_by_resource_id("com.jd.mrd.pangu:id/iv_floating_close"):
+                    print("✅ Survey closed")
+                    rsleep(self.rng, 0.6, 0.2)
+                    return True
+
+            rsleep(self.rng, 0.4, 0.1)
+
+        return False
+    
     def _get_text_by_rid(self, rid):
         xml = self.get_page_xml()
         try:
@@ -302,7 +334,7 @@ class DeviceBot:
         # 你也可以按需加：esc = esc.replace("@", r"\@")  （一般不需要）
 
         self.adb(["shell", "input", "text", esc])
-        rsleep(0.25, 0.1)
+        rsleep(self.rng, 0.25, 0.1)
 
         # 读取实际输入，修正“末尾多字符”
         for _ in range(max_fix):
@@ -321,13 +353,13 @@ class DeviceBot:
                 self.adb(["shell", "input", "keyevent", "123"])  # MOVE_END
                 for _ in range(extra):
                     self.adb(["shell", "input", "keyevent", "67"])  # DEL
-                rsleep(0.15, 0.05)
+                rsleep(self.rng, 0.15, 0.05)
                 continue
 
             # 其他情况（比如符号被改了）：直接重来一次
             self.clear_current_input(max_del=120)
             self.adb(["shell", "input", "text", esc])
-            rsleep(0.2, 0.05)
+            rsleep(self.rng, 0.2, 0.05)
 
         return False
     
@@ -444,7 +476,7 @@ class DeviceBot:
         if not self.click_edittext_after_label("Off-shelf quanity"):
             print("❌ Off-shelf quanity input not found.")
             return False
-        rsleep(0.1, 0)
+        rsleep(self.rng, 0.1, 0)
         self.input_text_direct("1")  # ✅ 固定填 1
 
     # 2) Destination cell/container -> destination_value
@@ -454,7 +486,7 @@ class DeviceBot:
                 print("❌ Destination input not found.")
                 return False
 
-        rsleep(0.1, 0)
+        rsleep(self.rng, 0.1, 0)
         self.input_text_direct(destination_value)  # ✅ 填 destination
         return True
 
@@ -471,9 +503,9 @@ class DeviceBot:
 
     def check_current_container(self, container_number):
         #self.adb(["shell", "input", "keyevent", "4"])
-        rsleep(0.4, 0.1)
+        rsleep(self.rng, 0.4, 0.1)
         self.input_text_direct(container_number)
-        rsleep(0.5,0.1)
+        rsleep(self.rng, 0.5,0.1)
         xml = self.get_page_xml()
         m = re.search(
             r'Total package quantity.*?text="(\d+)"', xml, re.S
@@ -546,20 +578,20 @@ class DeviceBot:
         for _ in range(tries):
             node, b = self._find_node_by_rid(rid)
             if not b:
-                rsleep(0.3, 0.1)
+                rsleep(self.rng, 0.3, 0.1)
                 continue
 
             x1, y1, x2, y2 = self._parse_bounds(b)
             cx, cy = (x1 + x2)//2, (y1 + y2)//2
             self.adb(["shell", "input", "tap", str(cx), str(cy)])
-            rsleep(0.25, 0.1)
+            rsleep(self.rng, 0.25, 0.1)
 
             if self._get_focused_rid() == rid:
                 return True
 
             # 有些设备 tap 不切焦点，补一个 TAB/DPAD_DOWN 再试
             self.adb(["shell", "input", "keyevent", "61"])  # TAB
-            rsleep(0.2, 0.1)
+            rsleep(self.rng, 0.2, 0.1)
 
             if self._get_focused_rid() == rid:
                 return True
@@ -596,12 +628,17 @@ class DeviceBot:
         current_container = "A1-R1-L1-B1"
 
         while not self.should_stop and (limit == 0 or loop_count < limit):
+            cred_idx = cred_idx % len(cred_list)
             if current_container == cell_a:
                 destination = cell_b
             else:
                 destination = cell_a
 
             account, password = cred_list[cred_idx]
+
+            seed_str = f"{self.serial}-{account}"
+            seed = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % (2**32)
+            self.rng.seed(seed)
 
             self.log("========================================")
             self.log(f"🔁 Loop #{loop_count + 1}")
@@ -615,9 +652,10 @@ class DeviceBot:
                 self.ensure_adb_keyboard()
                 self.stop_wms()
                 self.run_wms()
-                rsleep(1, 0.3)
+                rsleep(self.rng, 1, 0.3)
 
                 self.handle_update_if_needed()
+                self.close_survey_if_present()
 
             if not self.login(account, password):
                 print("❌ Login failed")
@@ -625,25 +663,26 @@ class DeviceBot:
                 continue
 
             self.handle_update_if_needed()
+            self.close_survey_if_present()
 
-            rsleep(0.8, 0.2)
+            rsleep(self.rng, 0.8, 0.2)
 
             # 进入功能页面
             if not self.click_by_text("In-Warehouse"):
                 return
-            rsleep(0.6, 0.1)
+            rsleep(self.rng, 0.6, 0.1)
 
             if not self.click_by_text("change"):
                 return
-            rsleep(0.6, 0.1)
+            rsleep(self.rng, 0.6, 0.1)
 
             if not self.click_by_text("Transfer"):
                 return
-            rsleep(0.6, 0.1)
+            rsleep(self.rng, 0.6, 0.1)
 
             if not self.click_by_text("Goods Location Trans."):
                 return
-            rsleep(0.6, 0.1)
+            rsleep(self.rng, 0.6, 0.1)
 
             # 输入 Cell Code
             self.input_text_direct(current_container, press_enter=True)
@@ -663,7 +702,7 @@ class DeviceBot:
             # 一直按返回直到主页面出现
             for _ in range(6):
                 self.adb(["shell", "input", "keyevent", "4"])
-                rsleep(0.25, 0.05)
+                rsleep(self.rng, 0.25, 0.05)
 
                 xml = self.get_page_xml()
                 if "JDL iWMS" in xml:
@@ -674,7 +713,7 @@ class DeviceBot:
             if not self.click_by_partial_id("iv_setting"):
                 return
 
-            rsleep(0.5, 0.1)
+            rsleep(self.rng, 0.5, 0.1)
 
             if not self.click_by_text("SIGN OUT"):
                 return
@@ -748,6 +787,9 @@ class DeviceBot:
         if not self.click_by_text("EWR-LG-5-US"):
             print("❌ Warehouse option not found")
             return False
+        
+        # 有时会弹出 Survey
+        self.close_survey_if_present()
 
         # 等主页面
         return self.wait_until_text("JDL iWMS", timeout=5)
@@ -788,7 +830,7 @@ class DeviceBot:
         cy = (y1 + y2) // 2
 
         self.adb(["shell", "input", "tap", str(cx), str(cy)])
-        rsleep(0.4, 0.1)   # ⭐ 给UI一点时间
+        rsleep(self.rng, 0.4, 0.1)   # ⭐ 给UI一点时间
 
         return True
 # ============================================================
