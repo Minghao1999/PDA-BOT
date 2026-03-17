@@ -839,7 +839,7 @@ class DeviceBot:
 class MultiDeviceGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Walmurt: A Faster,Lighter Billbert")
+        self.root.title("ADB WMS Controller")
         self.root.geometry("1100x850")
 
         self.running_processes = {}   # {serial: Thread}
