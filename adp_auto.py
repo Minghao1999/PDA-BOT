@@ -856,10 +856,6 @@ class MultiDeviceGUI:
         self.device_listbox.pack(padx=10, pady=10)
 
         ttk.Button(frame_left, text="刷新 USB", command=self.refresh_usb).pack(fill="x", padx=10, pady=5)
-        ttk.Button(frame_left, text="刷新 WiFi", command=self.refresh_wifi).pack(fill="x", padx=10, pady=5)
-        ttk.Button(frame_left, text="WiFi 配对", command=self.open_wifi_pair_window).pack(fill="x", padx=10, pady=5)
-        ttk.Button(frame_left, text="WiFi 连接", command=self.open_wifi_connect_window).pack(fill="x", padx=10, pady=5)
-
         # ttk.Button(frame_left, text="Kill 选中设备", command=self.kill_selected).pack(fill="x", padx=10, pady=5)
         # ttk.Button(frame_left, text="Kill ALL", command=self.kill_all).pack(fill="x", padx=10, pady=5)
 
@@ -870,26 +866,26 @@ class MultiDeviceGUI:
         frame_right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
         ttk.Label(frame_right, text="Login Account(one per line):").pack(anchor="w")
-        self.accounts_text = scrolledtext.ScrolledText(frame_right, height=4)
+        self.accounts_text = scrolledtext.ScrolledText(frame_right, height=8)
         self.accounts_text.pack(fill="x", pady=5)
 
         ttk.Label(frame_right, text="Login Password(one per line, match accounts):").pack(anchor="w")
-        self.passwords_text = scrolledtext.ScrolledText(frame_right, height=4)
-        self.passwords_text.pack(fill="x", pady=5)
+        self.passwords_text = scrolledtext.ScrolledText(frame_right, height=8)
+        self.passwords_text.pack(fill="x", pady=10)
         
         # ============================
         #  参数区
         # ============================
-        param_frame = ttk.LabelFrame(frame_right, text="运行参数设置")
+        param_frame = ttk.LabelFrame(frame_right, text="运行参数设置", padding=15)
         param_frame.pack(fill="x", pady=10)
 
         # limit
         # limit
         ttk.Label(param_frame, text="Limit:").grid(row=0, column=2, sticky="w")
-
+        PAD_Y = 3
         self.entry_limit = ttk.Entry(param_frame, width=10)
         self.entry_limit.insert(0, "0")
-        self.entry_limit.grid(row=0, column=3, padx=5)
+        self.entry_limit.grid(row=0, column=3, padx=8, pady=PAD_Y)
 
         # =========================
         # Warehouse 选择
@@ -913,7 +909,7 @@ class MultiDeviceGUI:
         ]
 
         self.warehouse_combo.current(3)
-        self.warehouse_combo.grid(row=1, column=3, padx=5)
+        self.warehouse_combo.grid(row=1, column=3, padx=8, pady=PAD_Y)
 
         # =========================
         # Product Code 输入
@@ -923,7 +919,7 @@ class MultiDeviceGUI:
         self.product_var = tk.StringVar()
         self.product_entry = ttk.Entry(param_frame, textvariable=self.product_var, width=20)
         self.product_entry.insert(0, "B0108-03001BK")
-        self.product_entry.grid(row=2, column=3, padx=5)
+        self.product_entry.grid(row=2, column=3, padx=8, pady=PAD_Y)
 
 
         # =========================
@@ -934,7 +930,7 @@ class MultiDeviceGUI:
         self.cell_a_var = tk.StringVar()
         self.cell_a_entry = ttk.Entry(param_frame, textvariable=self.cell_a_var, width=20)
         self.cell_a_entry.insert(0, "A1-R1-L1-B1")
-        self.cell_a_entry.grid(row=3, column=3, padx=5)
+        self.cell_a_entry.grid(row=3, column=3, padx=8, pady=PAD_Y)
 
 
         # =========================
@@ -945,7 +941,7 @@ class MultiDeviceGUI:
         self.cell_b_var = tk.StringVar()
         self.cell_b_entry = ttk.Entry(param_frame, textvariable=self.cell_b_var, width=20)
         self.cell_b_entry.insert(0, "A1-R1-L1-B2")
-        self.cell_b_entry.grid(row=4, column=3, padx=5)
+        self.cell_b_entry.grid(row=4, column=3, padx=8, pady=PAD_Y)
 
         ttk.Button(frame_right, text="▶ 启动任务（选中设备）",
                     command=self.start_for_selected).pack(pady=15)
